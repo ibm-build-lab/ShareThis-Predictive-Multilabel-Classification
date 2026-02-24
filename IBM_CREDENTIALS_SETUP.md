@@ -7,8 +7,6 @@ This guide provides step-by-step instructions for obtaining the necessary IBM Cl
 2. [Creating an IBM Cloud API Key](#creating-an-ibm-cloud-api-key)
 3. [Getting Your Project ID](#getting-your-project-id)
 4. [Setting Up IBM Cloud Object Storage (COS)](#setting-up-ibm-cloud-object-storage-cos)
-5. [Configuring Your Environment](#configuring-your-environment)
-6. [Troubleshooting](#troubleshooting)
 
 ---
 
