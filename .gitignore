@@ -47,7 +47,6 @@ venv.bak/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
 
 # Testing
 .pytest_cache/
@@ -57,7 +56,6 @@ htmlcov/
 .nox/
 
 # Data files
-*.csv
 *.xlsx
 *.xls
 !.env.example
