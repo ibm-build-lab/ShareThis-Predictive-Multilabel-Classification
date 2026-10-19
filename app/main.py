@@ -38,6 +38,48 @@ class BatchClassificationResponse(BaseModel):
     results: List[ClassificationResponse]
 
 
+class AnalyzeRequest(BaseModel):
+    url: str
+    k: Optional[int] = 55
+    max_keywords: Optional[int] = 10
+
+
+class KeywordsResponse(BaseModel):
+    theme: str
+    keywords: List[str]
+    phrases: List[str]
+    concepts: List[str]
+
+
+class EntitiesResponse(BaseModel):
+    PERSON: List[str]
+    ORGANIZATION: List[str]
+    LOCATION: List[str]
+    DATE: List[str]
+    EVENT: List[str]
+    PRODUCT: List[str]
+    OTHER: List[str]
+
+
+class MetadataResponse(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    domain: Optional[str] = None
+    word_count: Optional[int] = None
+
+
+class AnalyzeResponse(BaseModel):
+    url: str
+    status: str
+    categories: List[str]
+    keywords: KeywordsResponse
+    entities: EntitiesResponse
+    metadata: MetadataResponse
+    raw_text: Optional[str] = None
+    cleaned_text: Optional[str] = None
+    error: Optional[str] = None
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize pipeline on startup"""
@@ -80,6 +122,7 @@ async def startup_event():
     pipeline.generate_embeddings()
     pipeline.create_frequency_buckets()
     pipeline.prepare_examples()
+    pipeline.initialize_extractor()
 
 
 @app.get("/")
@@ -219,6 +262,59 @@ async def classify_batch(
         raise HTTPException(
             status_code=500,
             detail=f"Batch classification failed: {str(e)}"
+        )
+
+
+@app.post("/analyze", response_model=AnalyzeResponse)
+async def analyze_url(request: AnalyzeRequest):
+    """
+    Comprehensive URL analysis: scrape content, classify, extract keywords and entities.
+    
+    This endpoint:
+    1. Scrapes the provided URL to extract text content
+    2. Classifies the content into categories
+    3. Extracts keywords, phrases, and concepts
+    4. Extracts named entities (PERSON, ORGANIZATION, LOCATION, etc.)
+    
+    Returns all results in a single comprehensive response.
+    """
+    if pipeline is None:
+        raise HTTPException(status_code=503, detail="Pipeline not initialized")
+    
+    try:
+        # Perform comprehensive analysis
+        result = pipeline.analyze_url(
+            url=request.url,
+            k=request.k or 55,
+            max_keywords=request.max_keywords or 10
+        )
+        
+        # Check if analysis was successful
+        if result['status'] != 'success':
+            raise HTTPException(
+                status_code=400,
+                detail=result.get('error', 'Analysis failed')
+            )
+        
+        # Convert to response model
+        return AnalyzeResponse(
+            url=result['url'],
+            status=result['status'],
+            categories=result['categories'],
+            keywords=KeywordsResponse(**result['keywords']),
+            entities=EntitiesResponse(**result['entities']),
+            metadata=MetadataResponse(**result['metadata']),
+            raw_text=result.get('raw_text'),
+            cleaned_text=result.get('cleaned_text'),
+            error=result.get('error')
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Analysis failed: {str(e)}"
         )
 
 

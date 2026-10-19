@@ -1,11 +1,13 @@
 """Main classification pipeline"""
 import pandas as pd
 from collections import Counter
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from .embeddings import EmbeddingGenerator
 from .category_matcher import CategoryMatcher
 from .classifier import TextClassifier
 from .cos_reader import COSReader
+from .web_scraper import WebScraper
+from .extractors import KeywordEntityExtractor
 
 
 class ClassificationPipeline:
@@ -52,6 +54,10 @@ class ClassificationPipeline:
         self.category_matcher = None
         self.bucket_map = None
         self.examples_string = None
+        
+        # Initialize web scraper and extractor
+        self.web_scraper = WebScraper(timeout=30, max_retries=3)
+        self.extractor = None  # Will be initialized after model is created
     
     def load_and_prepare_data(self):
         """Load and prepare training data"""
@@ -155,8 +161,137 @@ class ClassificationPipeline:
         # Filter valid categories
         valid_set = set(s.strip() for s in self.unique_categories)
         predicted_categories = [
-            p.strip() for p in predicted_categories 
+            p.strip() for p in predicted_categories
             if isinstance(p, str) and p.strip() in valid_set
         ]
         
         return predicted_categories
+    
+    def initialize_extractor(self):
+        """Initialize the keyword and entity extractor with the classifier's model"""
+        if self.classifier and self.classifier.model:
+            self.extractor = KeywordEntityExtractor(self.classifier.model)
+        return self
+    
+    def extract_keywords_from_text(self, text: str, url: str = "", max_keywords: int = 10) -> Dict[str, Any]:
+        """
+        Extract keywords, phrases, and concepts from text.
+        
+        Args:
+            text (str): Text to analyze
+            url (str): Optional URL for context
+            max_keywords (int): Maximum number of keywords to extract
+            
+        Returns:
+            Dict[str, Any]: Dictionary containing theme, keywords, phrases, and concepts
+        """
+        if not self.extractor:
+            self.initialize_extractor()
+        
+        if not self.extractor:
+            raise ValueError("Extractor not initialized. Ensure classifier is properly set up.")
+        
+        return self.extractor.extract_keywords(text, url, max_keywords)
+    
+    def extract_entities_from_text(self, text: str, url: str = "") -> Dict[str, List[str]]:
+        """
+        Extract named entities from text.
+        
+        Args:
+            text (str): Text to analyze
+            url (str): Optional URL for context
+            
+        Returns:
+            Dict[str, List[str]]: Dictionary containing entity categories
+        """
+        if not self.extractor:
+            self.initialize_extractor()
+        
+        if not self.extractor:
+            raise ValueError("Extractor not initialized. Ensure classifier is properly set up.")
+        
+        return self.extractor.extract_entities(text, url)
+    
+    def analyze_url(self, url: str, k: int = 55, max_keywords: int = 10) -> Dict[str, Any]:
+        """
+        Comprehensive analysis of a URL: scrape content, classify, extract keywords and entities.
+        
+        Args:
+            url (str): URL to analyze
+            k (int): Number of top categories to consider
+            max_keywords (int): Maximum number of keywords to extract
+            
+        Returns:
+            Dict[str, Any]: Dictionary containing:
+                - url: Original URL
+                - status: 'success' or 'error'
+                - categories: List of predicted categories
+                - keywords: Extracted keywords information
+                - entities: Extracted named entities
+                - metadata: Basic metadata from scraping
+                - raw_text: Raw extracted text before cleaning
+                - cleaned_text: Cleaned text used for analysis
+                - error: Error message (if status is 'error')
+        """
+        result = {
+            'url': url,
+            'status': 'error',
+            'categories': [],
+            'keywords': {},
+            'entities': {},
+            'metadata': {},
+            'raw_text': None,
+            'cleaned_text': None,
+            'error': None
+        }
+        
+        # Step 1: Scrape the URL
+        scrape_result = self.web_scraper.scrape(url)
+        
+        if scrape_result['status'] != 'success':
+            result['error'] = scrape_result.get('error', 'Failed to scrape URL')
+            return result
+        
+        # Store raw text (before cleaning)
+        raw_text = scrape_result.get('raw_text', '')
+        cleaned_text = scrape_result['cleaned_text']
+        
+        if not cleaned_text:
+            result['error'] = 'No text content extracted from URL'
+            return result
+        
+        # Store both raw and cleaned text
+        result['raw_text'] = raw_text
+        result['cleaned_text'] = cleaned_text
+        
+        # Store basic metadata
+        result['metadata'] = {
+            'title': scrape_result['metadata'].get('title'),
+            'description': scrape_result['metadata'].get('description'),
+            'domain': scrape_result['metadata'].get('domain'),
+            'word_count': scrape_result['metadata'].get('word_count')
+        }
+        
+        try:
+            # Use cleaned_text for all operations for consistency
+            text = cleaned_text
+            
+            # Step 2: Classify text into categories
+            categories = self.classify_text(url=url, text=text, k=k)
+            result['categories'] = categories
+            
+            # Step 3: Extract keywords
+            keywords = self.extract_keywords_from_text(text=text, url=url, max_keywords=max_keywords)
+            result['keywords'] = keywords
+            
+            # Step 4: Extract entities
+            entities = self.extract_entities_from_text(text=text, url=url)
+            result['entities'] = entities
+            
+            result['status'] = 'success'
+            
+        except Exception as e:
+            result['error'] = f"Analysis error: {str(e)}"
+            return result
+        
+        return result

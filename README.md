@@ -1,67 +1,206 @@
-# Text Classification API
+# ShareThis Predictive Multilabel Classification
 
-Multi-label text classification API using embeddings and IBM Watsonx AI, deployed on IBM Code Engine.
+A comprehensive multi-label text classification system using embeddings and IBM Watsonx AI, deployed on IBM Code Engine. This project provides tools for web scraping, data extraction, keyword analysis, and intelligent content categorization.
 
-## Overview
+## 📋 Table of Contents
 
-This API classifies web page text into multiple categories using:
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [API Endpoints](#api-endpoints)
+- [Local Development](#local-development)
+- [Deployment](#deployment)
+- [Support](#support)
+
+## 🎯 Overview
+
+This project provides a complete pipeline for:
+- **Web Content Extraction**: Scrape and extract content from URLs
+- **Keyword & Entity Extraction**: Extract meaningful keywords and entities using IBM Watsonx AI
+- **Multi-label Classification**: Classify content into multiple categories using advanced ML techniques
+- **API Deployment**: Production-ready FastAPI service on IBM Code Engine
+
+### Classification Approach
+
+The system uses a hybrid approach combining:
 1. **Sentence embeddings** (all-MiniLM-L6-v2) for semantic similarity
 2. **Frequency bucketing** to prioritize common categories
-3. **IBM Watsonx AI LLM** for final classification
+3. **IBM Watsonx AI LLM** for final classification and validation
 
-## Architecture
+## ✨ Features
+
+- 🚀 **Fast API**: High-performance FastAPI with async support
+- 🤖 **IBM Watsonx AI Integration**: Leverage IBM's powerful LLM capabilities
+- 📊 **Multi-label Classification**: Assign multiple relevant categories to content
+- 🔍 **Web Scraping**: Extract content from URLs with intelligent parsing
+- 🎯 **Keyword Extraction**: Automated keyword and entity extraction
+- 📦 **Cloud Storage**: Support for IBM Cloud Object Storage (COS)
+- 🐳 **Docker Ready**: Containerized deployment with Docker
+- ☁️ **IBM Code Engine**: Seamless deployment to IBM's serverless platform
+- 📈 **Scalable**: Auto-scaling based on demand
+- 🔐 **Secure**: Environment-based credential management
+
+## 📚 Documentation
+
+Comprehensive documentation is available in the [`docs/`](./docs) folder:
+
+### Core Documentation
+- **[API Documentation](./docs/API_DOCUMENTATION.md)** - Complete API reference, endpoints, request/response formats, and usage examples
+- **[IBM Credentials Setup](./docs/IBM_CREDENTIALS_SETUP.md)** - Step-by-step guide for setting up IBM Cloud credentials and services
+- **[BYOM IBM Documentation](./docs/BYOM_IBM_DOCUMENTATION.md)** - Bring Your Own Model (BYOM) guide for IBM Watson
+  - **Main IBM BYOM Link**: [IBM Watson BYOM Overview](https://dataplatform.cloud.ibm.com/docs/content/wsj/analyze-data/ml-byom-overview.html)
+
+### Additional Resources
+- **[Web Scraper Guide](./docs/WEB_SCRAPER_README.md)** - Web scraping implementation and usage
+- **[Crawler Documentation](./docs/CRAWLER_README.md)** - Web crawler setup and configuration
+
+## 🏗️ Architecture
 
 ```
-app/src/
-├── embeddings.py       # Embedding generation using SentenceTransformer
-├── category_matcher.py # Cosine similarity with frequency bucketing
-├── classifier.py       # IBM Watsonx AI LLM classification
-└── pipeline.py         # End-to-end classification pipeline
-
-main.py                 # FastAPI application
+ShareThis-Predictive-Multilabel-Classification/
+├── app/
+│   ├── main.py                 # FastAPI application
+│   ├── Dockerfile              # Container configuration
+│   ├── requirements.txt        # Python dependencies
+│   └── src/
+│       ├── embeddings.py       # Sentence embedding generation
+│       ├── category_matcher.py # Cosine similarity with frequency bucketing
+│       ├── classifier.py       # IBM Watsonx AI LLM classification
+│       ├── pipeline.py         # End-to-end classification pipeline
+│       ├── web_scraper.py      # Web content extraction
+│       ├── extractors.py       # Keyword/entity extraction
+│       └── cos_reader.py       # IBM COS integration
+├── data/                       # Training data and results
+├── Notebook/                   # Jupyter notebooks for analysis
+└── docs/                       # Documentation files
 ```
 
-## API Endpoints
-
-### `POST /classify`
-Classify text into categories.
-
-**Request:**
-```json
-{
-  "url": "https://example.com",
-  "text": "Your text content here...",
-  "k": 55
-}
-```
-
-**Response:**
-```json
-{
-  "url": "https://example.com",
-  "categories": ["category1", "category2"]
-}
-```
-
-### `GET /categories`
-Get all available categories.
-
-### `GET /categories/batch`
-Get all available categories.
-
-### `GET /health`
-Health check endpoint.
-
-## Local Development
+## 🚀 Quick Start
 
 ### Prerequisites
+- Python 3.10+ (Python 3.12 recommended)
+- IBM Cloud account with Watsonx AI access
+- IBM Watsonx AI API key and Project ID
 
-**Important:** This project requires **Python 3.10 or higher** (Python 3.12 recommended) due to `ibm-watsonx-ai` package requirements.
+### Installation
 
-- Python 3.9 only supports `ibm-watsonx-ai==0.0.5` which lacks the `Credentials` class
-- Python 3.10+ supports `ibm-watsonx-ai>=1.1.11` with full feature support
+```bash
+# Clone the repository
+git clone https://github.com/YOUR-USERNAME/ShareThis-Predictive-Multilabel-Classification.git
+cd ShareThis-Predictive-Multilabel-Classification
 
-### Setup
+# Create virtual environment
+python3.12 -m venv venv312
+source venv312/bin/activate  # On Windows: venv312\Scripts\activate
+
+# Install dependencies
+cd app
+pip install -r requirements.txt
+
+# Set up environment variables
+cp env.example .env
+# Edit .env with your credentials
+```
+
+### Run the API
+
+```bash
+python main.py
+```
+
+The API will be available at `http://localhost:8080`
+
+## 🔌 API Endpoints
+
+### Classification
+- **`POST /classify`** - Classify text into multiple categories
+- **`POST /classify/batch`** - Batch classify from an uploaded CSV file (`url` + `text` columns required; returns CSV with added `categories` column)
+
+### URL Analysis
+- **`POST /analyze`** - Comprehensive URL analysis: scrapes URL, classifies content, extracts keywords/phrases/concepts and named entities in a single call
+
+### Categories
+- **`GET /categories`** - Get all available categories
+
+### Health & Status
+- **`GET /health`** - Health check endpoint
+- **`GET /`** - API information
+
+**Classify Example:**
+```bash
+curl -X POST http://localhost:8080/classify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "text": "Your text content here...",
+    "k": 55
+  }'
+```
+
+**Classify Response:**
+```json
+{
+  "url": "https://example.com",
+  "categories": [
+    "artificial-intelligence",
+    "startups"
+  ]
+}
+```
+
+**Analyze Example:**
+```bash
+curl -X POST http://localhost:8080/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "k": 55,
+    "max_keywords": 10
+  }'
+```
+
+**Analyze Response:**
+```json
+{
+  "url": "https://example.com",
+  "status": "success",
+  "categories": ["artificial-intelligence"],
+  "keywords": {
+    "theme": "AI and technology",
+    "keywords": ["machine learning", "neural networks"],
+    "phrases": ["deep learning models"],
+    "concepts": ["artificial intelligence"]
+  },
+  "entities": {
+    "PERSON": [], "ORGANIZATION": ["OpenAI"],
+    "LOCATION": [], "DATE": [], "EVENT": [],
+    "PRODUCT": ["ChatGPT"], "OTHER": []
+  },
+  "metadata": {
+    "title": "Example Page",
+    "description": "...",
+    "domain": "example.com",
+    "word_count": 450
+  },
+  "raw_text": "...",
+  "cleaned_text": "..."
+}
+```
+
+For detailed API documentation, see [API_DOCUMENTATION.md](./docs/API_DOCUMENTATION.md)
+
+## 💻 Local Development
+
+### System Requirements
+
+**Important:** This project requires **Python 3.10 or higher** (Python 3.12 recommended)
+
+- Python 3.9 only supports `ibm-watsonx-ai==0.0.5` (lacks `Credentials` class)
+- Python 3.10+ supports `ibm-watsonx-ai>=1.1.11` (full feature support)
+
+### Setup Options
 
 #### Option 1: Using venv (Recommended)
 
@@ -69,18 +208,20 @@ Health check endpoint.
 # Verify Python version (must be 3.10+)
 python3.12 --version
 
-# Create virtual environment with Python 3.12
+# Create virtual environment
 python3.12 -m venv venv312
 
-# Activate the environment
-source venv312/bin/activate  # On Windows: venv312\Scripts\activate
+# Activate environment
+source venv312/bin/activate  # Windows: venv312\Scripts\activate
+
+# Navigate to app directory
+cd app
 
 # Upgrade pip
 python -m pip install --upgrade pip
 
 # Install dependencies
 pip install -r requirements.txt
-
 ```
 
 #### Option 2: Using conda
@@ -92,46 +233,59 @@ conda create -n fastapi312 python=3.12
 # Activate environment
 conda activate fastapi312
 
+# Navigate to app directory
+cd app
+
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### Environment Variables
-#### Required
-- `WATSONX_API_KEY`: IBM Watsonx AI API key (required)
-- `WATSONX_PROJECT_ID`: IBM Watsonx AI project ID (required)
+### Environment Configuration
 
-#### Data Source Options
+Create a `.env` file in the `app/` directory (use `env.example` as template):
+
+#### Required Variables
+```bash
+WATSONX_API_KEY=your_watsonx_api_key
+WATSONX_PROJECT_ID=your_project_id
+```
+
+#### Data Source Configuration
 
 **Option 1: Local File (Default)**
-- `USE_COS`: Set to `false` or leave empty (default)
-- `DATA_PATH`: Path to training data CSV file (default: `with_label.csv`)
+```bash
+USE_COS=false
+DATA_PATH=with_label.csv
+```
 
 **Option 2: IBM Cloud Object Storage**
-- `USE_COS`: Set to `true` to enable COS
-- `COS_API_KEY`: IBM Cloud Object Storage API key
-- `COS_ENDPOINT`: COS endpoint URL (e.g., `https://s3.direct.us-south.cloud-object-storage.appdomain.cloud`)
-- `COS_BUCKET`: COS bucket name
-- `COS_OBJECT_KEY`: Object key/path in bucket (default: `with_label.csv`)
+```bash
+USE_COS=true
+COS_API_KEY=your_cos_api_key
+COS_ENDPOINT=https://s3.us-south.cloud-object-storage.appdomain.cloud
+COS_BUCKET=your_bucket_name
+COS_OBJECT_KEY=with_label.csv
+```
 
-See `env.example` for a complete configuration template.
+For detailed credential setup, see [IBM_CREDENTIALS_SETUP.md](./docs/IBM_CREDENTIALS_SETUP.md)
 
-## Data Format
+### Data Format
 
-The training data (`with_label.csv`) should have:
+Training data (`with_label.csv`) structure:
 - `url`: Web page URL
 - `text`: Page content
-- `label`: List of category labels (e.g., `['/category/subcategory/item']`)
+- `label`: Category labels (e.g., `['/category/subcategory/item']`)
 
-### Run Locally
+### Running the Application
 
 ```bash
+# From the app directory
 python main.py
 ```
 
-The API will be available at `http://localhost:8080`
+API available at: `http://localhost:8080`
 
-### Test the API
+### Testing
 
 ```bash
 # Health check
@@ -147,19 +301,42 @@ curl -X POST http://localhost:8080/classify \
     "url": "https://example.com",
     "text": "Your text content here..."
   }'
+
+# Comprehensive URL analysis (scrape + classify + keywords + entities)
+curl -X POST http://localhost:8080/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "k": 55,
+    "max_keywords": 10
+  }'
+
+# Batch classify from CSV file
+curl -X POST http://localhost:8080/classify/batch \
+  -F "file=@your_data.csv" \
+  -o classified_output.csv
 ```
 
-# Deploy to IBM Code Engine from GitHub Repository (UI Guide)
+## 🚢 Deployment
 
-This guide walks you through deploying the Text Classification API to IBM Code Engine using the web console and connecting it to your GitHub repository.
+### Deploy to IBM Code Engine
 
-## Prerequisites
+This project is designed for seamless deployment to IBM Code Engine, IBM's serverless container platform.
+
+#### Prerequisites
 
 - IBM Cloud account
 - GitHub repository with this code
 - IBM Watsonx AI credentials (API Key and Project ID)
+- (Optional) IBM Cloud Object Storage for data
 
-## Step-by-Step Deployment Guide
+#### Deployment Methods
+
+1. **UI-Based Deployment** - Deploy using IBM Cloud Console (recommended for beginners)
+2. **CLI-Based Deployment** - Deploy using IBM Cloud CLI (recommended for automation)
+3. **Docker Deployment** - Deploy using Docker containers
+
+#### Quick Deploy Steps
 
 ### Step 1: Access IBM Code Engine
 
@@ -305,10 +482,59 @@ curl -X POST https://YOUR-APP-URL/classify \
     "url": "https://example.com",
     "text": "Your text content here"
   }'
+
+# Comprehensive URL analysis
+curl -X POST https://YOUR-APP-URL/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "k": 55,
+    "max_keywords": 10
+  }'
+
+# Batch classify from CSV
+curl -X POST https://YOUR-APP-URL/classify/batch \
+  -F "file=@your_data.csv" \
+  -o classified_output.csv
 ```
 
-## Support
+## 📖 Additional Resources
 
+### IBM Services
 - [IBM Code Engine Documentation](https://cloud.ibm.com/docs/codeengine)
 - [IBM Watsonx AI Documentation](https://cloud.ibm.com/docs/watsonx-ai)
+- [IBM Cloud Object Storage](https://cloud.ibm.com/docs/cloud-object-storage)
+- [IBM Watson BYOM](https://dataplatform.cloud.ibm.com/docs/content/wsj/analyze-data/ml-byom-overview.html)
+
+### Project Documentation
+- [API Documentation](./docs/API_DOCUMENTATION.md)
+- [IBM Credentials Setup](./docs/IBM_CREDENTIALS_SETUP.md)
+- [BYOM IBM Guide](./docs/BYOM_IBM_DOCUMENTATION.md)
+- [Web Scraper Guide](./docs/WEB_SCRAPER_README.md)
+- [Crawler Documentation](./docs/CRAWLER_README.md)
+
+### Notebooks
+- `Notebook/EDA.ipynb` - Exploratory Data Analysis
+- `Notebook/watsonx_keyword_entity_extraction.ipynb` - Keyword extraction examples
+- `Notebook/url_analysis_demo.ipynb` - URL analysis demonstrations
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📝 License
+
+This project is part of the ShareThis Predictive Multilabel Classification system.
+
+## 💬 Support
+
+For issues, questions, or contributions:
+- Open an issue on GitHub
+- Check the documentation in the `docs/` folder
+- Review the troubleshooting guides
+
+---
+
+**Last Updated:** May 2026
+**Version:** 1.0.0
 
